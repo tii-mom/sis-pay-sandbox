@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIS Pay Sandbox</title>
+<style>
+  :root { --bg: #0b0b0c; --fg: #f2f2f2; --mut: #9a9a9a; --red: #e5352b; --green: #39d98a; --line: #262628; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  p { color: var(--mut); margin: 0 0 16px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 16px 0; }
+  button { width: 100%; border: 0; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 600; background: var(--red); color: #fff; cursor: pointer; }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--fg); margin-top: 8px; }
+  #out { font-size: 20px; color: var(--green); min-height: 1.6em; }
+  small { color: var(--mut); }
+</style>
+</head>
+<body>
+<main>
+  <h1>SIS Pay Sandbox</h1>
+  <p>一个最小的 SIS 付款示范：付 10 SIS，解锁今天的一句话。用来测试「超级智能蜗牛」项目首发的付款接入。</p>
+  <div class="card">
+    <div id="out"></div>
+    <button id="pay" type="button">用 SIS 付款 · 10 SIS</button>
+    <button id="check" class="ghost" type="button">我已付款，查看结果</button>
+    <small id="st"></small>
+  </div>
+  <small>付款在 Telegram 的「超级智能蜗牛」小程序里完成。订单号每次付款都不一样，存在你这台设备上。</small>
+</main>
+<script>
+// 接入方式见 https://sis.autos/docs.html?d=integration
+const PROJECT_ID = 0;          // 审核通过后填上项目编号
+const PRICE = 10;              // 标价（SIS）
+const API = "https://api.sis.mom";
+const LINES = ["慢一点，看清楚再拍板。", "今天只做一件事，把它做完。", "不懂的项目，不碰。", "记下你为什么买，卖的时候再看一遍。", "好项目不怕等 72 小时。"];
+const $ = (id) => document.getElementById(id);
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+const newRef = () => "SB-" + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2)).replace(/[^A-Za-z0-9-]/g, "").slice(0, 36);
+function unlock() { const d = new Date().toISOString().slice(0, 10); let h = 0; for (const c of d) h = (h * 31 + c.charCodeAt(0)) >>> 0; $("out").textContent = LINES[h % LINES.length]; $("st").textContent = "已付款，谢谢。"; }
+async function check() {
+  const ref = store.get("sis_ref");
+  if (!PROJECT_ID) { $("st").textContent = "项目还没上架，暂时不能付款。"; return; }
+  if (!ref) { $("st").textContent = "还没有付款记录。"; return; }
+  $("st").textContent = "查询中…";
+  try {
+    const r = await (await fetch(`${API}/v1/public/pay?project=${PROJECT_ID}&ref=${encodeURIComponent(ref)}`)).json();
+    if (r.paid && r.amount >= PRICE) { store.set("sis_paid", ref); unlock(); if (r.test) $("st").textContent += "（测试付款，不计入验证）"; }
+    else $("st").textContent = "还没看到这笔付款。付完回到这里再点一次。";
+  } catch { $("st").textContent = "查询失败，稍后再试。"; }
+}
+$("pay").onclick = () => {
+  if (!PROJECT_ID) { $("st").textContent = "项目还没上架，暂时不能付款。"; return; }
+  const ref = newRef(); store.set("sis_ref", ref);
+  location.href = `https://t.me/sis2077_bot/SIS?startapp=pay_${PROJECT_ID}_${PRICE}_${ref}`;
+};
+$("check").onclick = check;
+if (store.get("sis_paid")) unlock();
+</script>
+</main>
+</body>
+</html>
