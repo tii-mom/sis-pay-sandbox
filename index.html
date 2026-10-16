@@ -53,7 +53,10 @@ async function check() {
 $("pay").onclick = () => {
   if (!PROJECT_ID) { $("st").textContent = "项目还没上架，暂时不能付款。"; return; }
   const ref = newRef(); store.set("sis_ref", ref);
-  location.href = `https://t.me/sis2077_bot/SIS?startapp=pay_${PROJECT_ID}_${PRICE}_${ref}`;
+  const sp = `pay_${PROJECT_ID}_${PRICE}_${ref}`;
+  // Telegram 内置浏览器里 https://t.me 链接有时只会回到聊天、不打开小程序：先用 tg:// 直接打开，打不开再退回 https 链接
+  location.href = `tg://resolve?domain=sis2077_bot&appname=SIS&startapp=${sp}`;
+  setTimeout(() => { if (!document.hidden) location.href = `https://t.me/sis2077_bot/SIS?startapp=${sp}`; }, 1200);
 };
 $("check").onclick = check;
 if (store.get("sis_paid")) unlock();
